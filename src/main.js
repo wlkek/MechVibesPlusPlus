@@ -7,31 +7,141 @@ const ListenHandler = require('./utils/listen_handler');
 const KeyupHandler = require('./utils/keyup_handler');
 const MouseHandler = require('./utils/mouse_handler');
 const RandomHandler = require('./utils/random_handler');
+const i18n = require('./i18n');
+const Store = require('electron-store');
+const store = new Store();
 
 const SYSTRAY_ICON = path.join(__dirname, '/assets/system-tray-icon.png');
 const home_dir = app.getPath('home');
 const keyboardcustom_dir = path.join(home_dir, '/mechvibes_custom');
 const mousecustom_dir = path.join(home_dir, '/mousevibes_custom');
 
-// Keep a global reference of the window object, if you don't, the window will
-// be closed automatically when the JavaScript object is garbage collected.
 var win;
 var tray = null;
 global.app_version = app.getVersion();
 global.keyboardcustom_dir = keyboardcustom_dir;
 global.mousecustom_dir = mousecustom_dir;
-// create custom sound folder if not exists
 fs.ensureDirSync(keyboardcustom_dir);
 fs.ensureDirSync(mousecustom_dir);
 
+const savedLocale = store.get('mechvibes-locale') || 'en';
+i18n.setLocale(savedLocale);
+
+function buildContextMenu(startup_handler, listen_handler, keyup_handler, mouse_handler, random_handler) {
+  return Menu.buildFromTemplate([
+    {
+      label: i18n.t('tray.appName'),
+      click: function () {
+        win.show();
+      },
+    },
+    {
+      label: i18n.t('tray.editor'),
+      click: function () {
+        openEditorWindow();
+      },
+    },
+    {
+      label: i18n.t('tray.keyboardCustomFolder'),
+      click: function () {
+        shell.openItem(keyboardcustom_dir);
+      },
+    },
+    {
+      label: i18n.t('tray.mouseCustomFolder'),
+      click: function () {
+        shell.openItem(mousecustom_dir);
+      },
+    },
+    {
+      label: i18n.t('tray.openDevtools'),
+      click: function () {
+        win.openDevTools();
+        win.webContents.openDevTools();
+      },
+    },
+    {
+      label: i18n.t('tray.refreshSoundpacks'),
+      click: function () {
+        win.webContents.send('refresh')
+      },
+    },
+    {
+      label: i18n.t('tray.mute'),
+      type: 'checkbox',
+      checked: listen_handler.is_muted,
+      click: function () {
+        listen_handler.toggle();
+        win.webContents.send('muted', listen_handler.is_muted);
+      },
+    },
+    {
+      label: i18n.t('tray.keyupSounds'),
+      type: 'checkbox',
+      checked: keyup_handler.is_keyup,
+      click: function () {
+        keyup_handler.toggle();
+        win.webContents.send('theKeyup', keyup_handler.is_keyup);
+      },
+    },
+    {
+      label: i18n.t('tray.mouseSounds'),
+      type: 'checkbox',
+      checked: mouse_handler.is_mousesounds,
+      click: function () {
+        mouse_handler.toggle();
+        win.webContents.send('MouseSounds', mouse_handler.is_mousesounds);
+      },
+    },
+    {
+      label: i18n.t('tray.randomSounds'),
+      type: 'checkbox',
+      checked: random_handler.is_random,
+      click: function () {
+        random_handler.toggle();
+        win.webContents.send('RandomSoundEnable', random_handler.is_random);
+      },
+    },
+    {
+      label: i18n.t('tray.enableAtStartup'),
+      type: 'checkbox',
+      checked: startup_handler.is_enabled,
+      click: function () {
+        startup_handler.toggle();
+      },
+    },
+    {
+      label: i18n.t('tray.language'),
+      submenu: i18n.getAvailableLocales().map((locale) => ({
+        label: locale === 'en' ? 'English' : '中文',
+        type: 'radio',
+        checked: i18n.getLocale() === locale,
+        click: function () {
+          i18n.setLocale(locale);
+          store.set('mechvibes-locale', locale);
+          tray.setContextMenu(buildContextMenu(startup_handler, listen_handler, keyup_handler, mouse_handler, random_handler));
+          win.webContents.send('locale-changed', locale);
+          if (editor_window) {
+            editor_window.webContents.send('locale-changed', locale);
+          }
+        },
+      })),
+    },
+    {
+      label: i18n.t('tray.quit'),
+      click: function () {
+        app.isQuiting = true;
+        app.quit();
+      },
+    },
+  ]);
+}
+
 function createWindow(show = true) {
-  // Create the browser window.
   win = new BrowserWindow({
     width: 450,
     height: 730,
     webSecurity: false,
-    // resizable: false,
-    // fullscreenable: false,
     webPreferences: {
       preload: path.join(__dirname, 'app.js'),
       contextIsolation: false,
@@ -40,21 +150,11 @@ function createWindow(show = true) {
     show,
   });
 
-  // remove menu bar
   win.removeMenu();
 
-  // and load the index.html of the app.
   win.loadFile('./src/app.html');
 
-  // Open the DevTools.
-  //win.openDevTools();
-  //win.webContents.openDevTools();
-
-  // Emitted when the window is closed.
   win.on('closed', function () {
-    // Dereference the window object, usually you would store windows
-    // in an array if your app supports multi windows, this is the time
-    // when you should delete the corresponding element.
     win = null;
   });
 
@@ -82,7 +182,6 @@ function createWindow(show = true) {
 
 const gotTheLock = app.requestSingleInstanceLock();
 app.on('second-instance', () => {
-  // Someone tried to run a second instance, we should focus our window.
   if (win) {
     win.show();
     win.focus();
@@ -93,7 +192,6 @@ if (!gotTheLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    // Someone tried to run a second instance, we should focus our window.
     if (win) {
       if (win.isMinimized()) {
         win.restore();
@@ -103,18 +201,11 @@ if (!gotTheLock) {
     }
   });
 
-  // This method will be called when Electron has finished
-  // initialization and is ready to create browser windows.
-  // Some APIs can only be used after this event occurs.
-  // Don't show the window and create a tray instead
-  // create and get window instance
   app.on('ready', () => {
     win = createWindow(true);
 
-    // start tray icon
     tray = new Tray(SYSTRAY_ICON);
 
-    // tray icon tooltip
     tray.setToolTip('MechvibesPlusPlus');
 
     const startup_handler = new StartupHandler(app);
@@ -123,108 +214,12 @@ if (!gotTheLock) {
     const mouse_handler = new MouseHandler(app);
     const random_handler = new RandomHandler(app);
 
-    // context menu when hover on tray icon
-    const contextMenu = Menu.buildFromTemplate([
-      {
-        label: 'MechvibesPlusPlus',
-        click: function () {
-          // show app on click
-          win.show();
-        },
-      },
-      {
-        label: 'Editor',
-        click: function () {
-          openEditorWindow();
-        },
-      },
-      {
-        label: 'Keyboard Sound Custom Folder',
-        click: function () {
-          shell.openItem(keyboardcustom_dir);
-        },
-      },
-      {
-        label: 'Mouse Sound Custom Folder',
-        click: function () {
-          shell.openItem(mousecustom_dir);
-        },
-      },
-      {
-        label: 'Open Devtools',
-        click: function () {
-          win.openDevTools();
-          win.webContents.openDevTools();
-        },
-      },
-      {
-        label: 'Refresh Soundpacks',
-        click: function () {
-          win.webContents.send('refresh')
-        },
-      },
-      {
-        label: 'Mute',
-        type: 'checkbox',
-        checked: listen_handler.is_muted,
-        click: function () {
-          listen_handler.toggle();
-          win.webContents.send('muted', listen_handler.is_muted);
-        },
-      },
-      {
-      label: 'Keyup Sounds',
-      type: 'checkbox',
-      checked: keyup_handler.is_keyup,
-      click: function () {
-        keyup_handler.toggle();
-        win.webContents.send('theKeyup', keyup_handler.is_keyup);
-        },
-      },
-      {
-        label: 'Mouse Sounds',
-        type: 'checkbox',
-        checked: mouse_handler.is_mousesounds,
-        click: function () {
-          mouse_handler.toggle();
-          win.webContents.send('MouseSounds', mouse_handler.is_mousesounds);
-        },
-      },
-      {
-        label: 'Random Sounds',
-        type: 'checkbox',
-        checked: random_handler.is_random,
-        click: function () {
-          random_handler.toggle();
-          win.webContents.send('RandomSoundEnable', random_handler.is_random);
-        },
-      },
-      {
-        label: 'Enable at Startup',
-        type: 'checkbox',
-        checked: startup_handler.is_enabled,
-        click: function () {
-          startup_handler.toggle();
-        },
-      },
-      {
-        label: 'Quit',
-        click: function () {
-          // quit
-          app.isQuiting = true;
-          app.quit();
-        },
-      },
-    ]);
+    tray.setContextMenu(buildContextMenu(startup_handler, listen_handler, keyup_handler, mouse_handler, random_handler));
 
-    // double click on tray icon, show the app
     tray.on('double-click', () => {
       win.show();
     });
 
-    tray.setContextMenu(contextMenu);
-
-    // prevent Electron app from interrupting macOS system shutdown
     if (process.platform == 'darwin') {
       const { powerMonitor } = require('electron');
       powerMonitor.on('shutdown', () => {
@@ -236,20 +231,14 @@ if (!gotTheLock) {
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
-// Quit when all windows are closed.
 app.on('window-all-closed', function () {
-  // On macOS it is common for applications and their menu bar
-  // to stay active until the user quits explicitly with Cmd + Q
   if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('activate', function () {
-  // On macOS it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   if (win === null) createWindow();
 });
 
-// always be sure that your application handles the 'quit' event in your main process
 app.on('quit', () => {
   app.quit();
 });
@@ -265,18 +254,10 @@ function openEditorWindow() {
   editor_window = new BrowserWindow({
     width: 1200,
     height: 600,
-    // resizable: false,
-    // minimizable: false,
-    // fullscreenable: false,
-    // modal: true,
-    // parent: win,
     webPreferences: {
-      // preload: path.join(__dirname, 'editor.js'),
       nodeIntegration: true,
     },
   });
-
-  // editor_window.openDevTools();
 
   editor_window.loadFile('./src/editor.html');
 

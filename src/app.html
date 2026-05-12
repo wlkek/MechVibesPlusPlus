@@ -11,7 +11,7 @@
 
   <body id="overall-body" style="padding: 2rem; background-color:#121212; user-select: none;"></body>
     <div id="app-logo">
-      <div id="logo">Loading...</div>
+      <div id="logo" data-i18n="app.loading">Loading...</div>
     </div>
 
     <div id="app-body" class="loading">
@@ -27,19 +27,19 @@
               <select id="mousepack-list" class="custom-input mb-0 hidden" style="width: 100%; margin-right: 10px; background-color:#1f1f1f; color:#adadad"></select>
               <div style="text-align: right">
                 <small>
-                  <a href="https://discord.gg/NzeXc8gMWW" class="open-in-browser">Join our Discord.</a>
+                  <a href="https://discord.gg/NzeXc8gMWW" class="open-in-browser" data-i18n="app.joinDiscord">Join our Discord.</a>
                 </small>
               </div>
             </td>
           </tr>
           <tr>
-            <td id="KeyVolSlider" style="width: 50%; color:#ebebeb"; color=>Keyboard Volume <span id="keyboard-volume-value-display" style="font-weight: bold; color:#ebebeb"></span></td>
+            <td id="KeyVolSlider" style="width: 50%; color:#ebebeb"; color=><span data-i18n="app.keyboardVolume">Keyboard Volume</span> <span id="keyboard-volume-value-display" style="font-weight: bold; color:#ebebeb"></span></td>
             <td style="width: 50%">
               <input type="range" min="0" max="100" value="20" step="1" class="slider mb-0" id="keyvolume" style="width: 100%" />
             </td>
           </tr>
           <tr>
-            <td id="MouseVolSlider" class="hidden" style="width: 50%; color:#ebebeb"; color=>Mouse Volume <span id="mouse-volume-value-display" class="hidden" style="font-weight: bold; color:#ebebeb"></span></td>
+            <td id="MouseVolSlider" class="hidden" style="width: 50%; color:#ebebeb"; color=><span data-i18n="app.mouseVolume">Mouse Volume</span> <span id="mouse-volume-value-display" class="hidden" style="font-weight: bold; color:#ebebeb"></span></td>
             <td style="width: 50%">
               <input type="range" min="0" max="100" value="20" step="1" class="slider mb-0 hidden" id="mousevolume" style="width: 100%" />
             </td>
@@ -48,28 +48,27 @@
       </table>
       <div class="divider"></div>
       <div style="color: #ebebeb; font-size: 12px; text-align: center">
-        <p>Made with ❤ by <a href="https://github.com/PyroCalzone/MechVibesPlusPlus" class="open-in-browser">Pyro & Saturn</a></p>
+        <p><span data-i18n="app.madeWith">Made with ❤ by</span> <a href="https://github.com/PyroCalzone/MechVibesPlusPlus" class="open-in-browser">Pyro & Saturn</a></p>
         <p>
-          <a href="https://mechvibes.com" class="open-in-browser">Support Original Mechvibes</a>
+          <a href="https://mechvibes.com" class="open-in-browser" data-i18n="app.supportOriginal">Support Original Mechvibes</a>
           &nbsp;&nbsp;|&nbsp;&nbsp;
-          <a href="https://github.com/PyroCalzone/MechVibesPlusPlus" class="open-in-browser">Our GitHub</a>
+          <a href="https://github.com/PyroCalzone/MechVibesPlusPlus" class="open-in-browser" data-i18n="app.ourGithub">Our GitHub</a>
           &nbsp;&nbsp;|&nbsp;&nbsp;
-          <a href="https://ko-fi.com/pyrodevelopment" class="open-in-browser">Buy me a coffee</a>
-        </p>  
+          <a href="https://ko-fi.com/pyrodevelopment" class="open-in-browser" data-i18n="app.buyCoffee">Buy me a coffee</a>
+        </p>
         <p id="app-version" style="color: #9b9b9b">-</p>
         <div id="update-available" class="hidden">
-          New version of MechvibesPlusPlus is available (<span id="new-version">-</span>)
+          <span data-i18n="app.newVersionAvailable">New version of MechvibesPlusPlus is available</span> (<span id="new-version">-</span>)
           <div style="margin-top: 5px">
-            <a href="https://github.com/PyroCalzone/MechVibesPlusPlus/releases/latest" class="open-in-browser">View Update on GitHub</a>
+            <a href="https://github.com/PyroCalzone/MechVibesPlusPlus/releases/latest" class="open-in-browser" data-i18n="app.viewUpdate">View Update on GitHub</a>
           </div>
       </div>
       <div id="soundpack-bug" class="hidden" style="position:relative; top:10px">
-        <!-- OLD: One or more of your soundpacks are broken. They have not been loaded. -->
-        We have caught an error, if this reoccurs one or more of your soundpacks may be broken.<br>
-        Otherwise, you can safely ignore this message.
+        <span data-i18n="app.soundpackBug">We have caught an error, if this reoccurs one or more of your soundpacks may be broken.</span><br>
+        <span data-i18n="app.soundpackBugIgnore">Otherwise, you can safely ignore this message.</span>
       </div>
       <div id="mouseSounds" class="hidden" style="position:relative; top:20px">
-        Mouse Sounds are disabled, to enable them please check system tray.
+        <span data-i18n="app.mouseSoundsDisabled">Mouse Sounds are disabled, to enable them please check system tray.</span>
       </div>
     </div>
   </body>

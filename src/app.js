@@ -1,8 +1,5 @@
 'use strict';
 
-// All of the Node.js APIs are available in the preload process.
-// It has the same sandbox as a Chrome extension.
-// const gkm = require('gkm');
 const Store = require('electron-store');
 const store = new Store();
 const { Howl } = require('howler');
@@ -12,6 +9,10 @@ const iohook = require('iohook');
 const path = require('path');
 const { platform } = process;
 const remapper = require('./utils/remapper');
+const i18n = require('./i18n');
+
+const savedLocale = store.get('mechvibes-locale') || 'en';
+i18n.setLocale(savedLocale);
 
 const MV_KEYBOARD_PACK_LSID = 'mechvibes-pack';
 const MV_MOUSE_PACK_LSID = 'mechvibes-mousepack';
@@ -36,13 +37,16 @@ let keyboardpacks = [];
 let mousepacks = [];
 const all_sound_files = {};
 
-// ==================================================
-// load all pack
-async function loadPacks(status_display_elem, app_body) {
-  // init
-  status_display_elem.innerHTML = 'Loading...';
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = i18n.t(key);
+  });
+}
 
-  // get all audio folders
+async function loadPacks(status_display_elem, app_body) {
+  status_display_elem.innerHTML = i18n.t('app.loading');
+
   const official_packs = await glob.sync(KEYBOARD_OFFICIAL_PACKS_DIR + '/*/');
   const custom_packs = await glob.sync(KEYBOARD_CUSTOM_PACKS_DIR + '/*/');
   const mouse_official_packs = await glob.sync(MOUSE_OFFICIAL_PACKS_DIR + '/*/');
@@ -52,23 +56,13 @@ async function loadPacks(status_display_elem, app_body) {
 
   var fucked = false
 
-  // get pack data
   folders.map((folder) => {
       try{
-        // define group by types
         const is_custom = folder.indexOf('mechvibes_custom') > -1 ? true : false;
-        
-        // get folder name
         const splited = folder.split('/');
         const folder_name = splited[splited.length - 2];
-        
-        // define config file path
         const config_file = `${folder.replace(/\/$/, '')}/config.json`;
-        
-        // get pack info and defines data
         const { name, includes_numpad, sound = '', defines, key_define_type = 'single', compatibility = false } = require(config_file);
-        
-        // pack sound pack data
         const pack_data = {
           pack_id: `${is_custom ? 'custom' : 'default'}-${folder_name}`,
           group: is_custom ? 'Custom' : 'Default',
@@ -78,15 +72,11 @@ async function loadPacks(status_display_elem, app_body) {
           name,
           includes_numpad,
         };
-        
-        // init sound data
         if (key_define_type == 'single') {
-          // define sound path
           const sound_path = `${folder}${sound}`;
           const sound_data = new Howl({ src: [sound_path], sprite: keycodesRemap(defines) });
           Object.assign(pack_data, { sound: sound_data });
           all_sound_files[pack_data.pack_id] = false;
-          // event when sound loaded
           sound_data.once('load', function () {
             all_sound_files[pack_data.pack_id] = true;
             checkIfAllSoundLoaded(status_display_elem, app_body);
@@ -95,11 +85,9 @@ async function loadPacks(status_display_elem, app_body) {
           const sound_data = {};
           Object.keys(defines).map((kc) => {
             if (defines[kc]) {
-              // define sound path
               const sound_path = `${folder}${defines[kc]}`;
               sound_data[kc] = new Howl({ src: [sound_path] });
               all_sound_files[`${pack_data.pack_id}-${kc}`] = false;
-              // event when sound_data loaded
               sound_data[kc].once('load', function () {
                 all_sound_files[`${pack_data.pack_id}-${kc}`] = true;
                 checkIfAllSoundLoaded(status_display_elem, app_body);
@@ -110,28 +98,17 @@ async function loadPacks(status_display_elem, app_body) {
             Object.assign(pack_data, { sound: keycodesRemap(sound_data) });
           }
         }
-        
-        // push pack data to pack list
         keyboardpacks.push(pack_data);
       } catch(err){fucked = true}
     });
-    
+
     mouse_folders.map((folder) => {
       try{
-        // define group by types
         const is_custom = folder.indexOf('mousevibes_custom') > -1 ? true : false;
-        
-        // get folder name
         const splited = folder.split('/');
         const folder_name = splited[splited.length - 2];
-        
-        // define config file path
         const config_file = `${folder.replace(/\/$/, '')}/config.json`;
-        
-        // get pack info and defines data
         const { name, sound = '', defines, key_define_type = 'single'} = require(config_file);
-
-        // pack sound pack data
         const pack_data = {
           pack_id: `${is_custom ? 'custom' : 'default'}-${folder_name}`,
           group: is_custom ? 'Custom' : 'Default',
@@ -139,15 +116,11 @@ async function loadPacks(status_display_elem, app_body) {
           key_define_type,
           name,
         };
-
-        // init sound data
-        if (key_define_type == 'single') { //This wont work, I still don't give a shit. Maybe??
-          // define sound path
+        if (key_define_type == 'single') {
           const sound_path = `${folder}${sound}`;
           const sound_data = new Howl({ src: [sound_path], sprite: keycodesRemap(defines) });
           Object.assign(pack_data, { sound: sound_data });
           all_sound_files[pack_data.pack_id] = false;
-          // event when sound loaded
           sound_data.once('load', function () {
             all_sound_files[pack_data.pack_id] = true;
             checkIfAllSoundLoaded(status_display_elem, app_body);
@@ -156,11 +129,9 @@ async function loadPacks(status_display_elem, app_body) {
           const sound_data = {};
           Object.keys(defines).map((kc) => {
             if (defines[kc]) {
-              // define sound path
               const sound_path = `${folder}${defines[kc]}`;
               sound_data[kc] = new Howl({ src: [sound_path] });
               all_sound_files[`${pack_data.pack_id}-${kc}`] = false;
-              // event when sound_data loaded
               sound_data[kc].once('load', function () {
                 all_sound_files[`${pack_data.pack_id}-${kc}`] = true;
                 checkIfAllSoundLoaded(status_display_elem, app_body);
@@ -171,32 +142,25 @@ async function loadPacks(status_display_elem, app_body) {
             Object.assign(pack_data, { sound: keycodesRemap(sound_data) });
           }
         }
-
-        // push pack data to pack list
         mousepacks.push(pack_data);
       } catch(err){fucked = true}
     });
 
-  // end load
   return fucked;
 }
 
 
-// ==================================================
-// check if all packs loaded
 function checkIfAllSoundLoaded(status_display_elem, app_body) {
   Object.keys(all_sound_files).map((key) => {
     if (!all_sound_files[key]) {
       return false;
     }
   });
-  status_display_elem.innerHTML = 'Mechvibes++';
+  status_display_elem.innerHTML = i18n.t('app.title');
   app_body.classList.remove('loading');
   return true;
 }
 
-// ==================================================
-// remap keycodes from standard to os based keycodes
 function keycodesRemap(defines) {
   const sprite = remapper('standard', platform, defines);
   Object.keys(sprite).map((kc) => {
@@ -205,11 +169,6 @@ function keycodesRemap(defines) {
   });
   return sprite;
 }
-
-// ==================================================
-// get pack by id,
-// if id is null,
-// get saved pack
 
 var packs = null
 function getPack(korm, pack_id = null) {
@@ -234,10 +193,7 @@ function getPack(korm, pack_id = null) {
   return packs.find((pack) => pack.pack_id == pack_id);
 }
 
-// ==================================================
-// transform pack to select option list
 function packsToOptions(packs, pack_list, korm) {
-  // get saved pack id
   const selected_pack_id = store.get(korm=='keyboard' ? MV_KEYBOARD_PACK_LSID : MV_MOUSE_PACK_LSID);
   const groups = [];
   packs.map((pack) => {
@@ -259,10 +215,8 @@ function packsToOptions(packs, pack_list, korm) {
     optgroup.label = group.name;
     optgroup.class = group.name;
     for (let pack of group.packs) {
-      // check if selected
       const is_selected = selected_pack_id == pack.pack_id;
       if (is_selected) {
-        // pack current pack to saved pack
         if(korm=='keyboard'){
           current_keyboard_pack = pack;
         }
@@ -270,7 +224,6 @@ function packsToOptions(packs, pack_list, korm) {
           current_mouse_pack = pack;
         }
       }
-      // add pack to pack list
       const opt = document.createElement('option');
       opt.text = pack.name;
       opt.value = pack.pack_id;
@@ -280,8 +233,6 @@ function packsToOptions(packs, pack_list, korm) {
     pack_list.appendChild(optgroup);
   }
 
-  // on select an option
-  // update saved list id
   pack_list.addEventListener('change', (e) => {
     const selected_id = e.target.options[e.target.selectedIndex].value;
     store.set(korm=='keyboard' ? MV_KEYBOARD_PACK_LSID : MV_MOUSE_PACK_LSID, selected_id);
@@ -294,8 +245,6 @@ function packsToOptions(packs, pack_list, korm) {
   });
 }
 
-// ==================================================
-// main
 (function (window, document) {
   window.addEventListener('DOMContentLoaded', async () => {
     const version = document.getElementById('app-version');
@@ -314,17 +263,16 @@ function packsToOptions(packs, pack_list, korm) {
     const mouseNotification = document.getElementById('mouseSounds');
     const ApplicationBody = document.getElementById('overall-body');
 
-    // set app version
+    applyTranslations();
+
     version.innerHTML = APP_VERSION;
 
-    // load all packs
     var fuckcheck = await loadPacks(app_logo, app_body);
 
     if(fuckcheck){
       soundpackbug.classList.remove('hidden');
     }
 
-    // transform packs to options list
     packsToOptions(keyboardpacks, keyboardpack_list, 'keyboard');
     packsToOptions(mousepacks, mousepack_list, 'mouse');
 
@@ -336,7 +284,6 @@ function packsToOptions(packs, pack_list, korm) {
       mousepack_list.selectedIndex = -1;
     }
 
-    // check for new version
     fetch('https://api.github.com/repos/PyroCalzone/MechVibesPlusPlus/releases/latest')
       .then((res) => res.json())
       .then((json) => {
@@ -346,7 +293,6 @@ function packsToOptions(packs, pack_list, korm) {
         }
       });
 
-    // a little hack for open link in browser
     Array.from(document.getElementsByClassName('open-in-browser')).forEach((elem) => {
       elem.addEventListener('click', (e) => {
         e.preventDefault();
@@ -354,7 +300,6 @@ function packsToOptions(packs, pack_list, korm) {
       });
     });
 
-    // get last selected pack
     try {
       current_keyboard_pack = getPack('keyboard');
       current_mouse_pack = getPack('mouse');
@@ -362,7 +307,6 @@ function packsToOptions(packs, pack_list, korm) {
       soundpackbug.classList.remove('hidden');
     };
 
-    // display volume value
     if (store.get(MV_KEY_VOL_LSID)) {
       volume.value = store.get(MV_KEY_VOL_LSID);
     };
@@ -396,25 +340,28 @@ function packsToOptions(packs, pack_list, korm) {
       removeOptions(document.getElementById('mousepack-list'));
       $('#mousepack-list').find('optgroup').empty();
       $('#mousepack-list').find('optgroup').remove();
-      
+
       keyboardpacks = [];
       mousepacks = [];
 
       var fuckcheck2 = await loadPacks(app_logo, app_body)
 
-
-      // transform packs to options list
       packsToOptions(keyboardpacks, keyboardpack_list, 'keyboard');
       packsToOptions(mousepacks, mousepack_list, 'mouse');
 
-      app_logo.innerHTML = "Mechvibes++";
+      app_logo.innerHTML = i18n.t('app.title');
     })
+
+    ipcRenderer.on('locale-changed', function (_event, locale) {
+      i18n.setLocale(locale);
+      applyTranslations();
+      app_logo.innerHTML = i18n.t('app.title');
+    });
 
     if (!is_muted) {
       iohook.start();
     }
-    
-    // listen to key press
+
     ipcRenderer.on('muted', function (_event, _is_muted) {
       is_muted = _is_muted;
       if (is_muted) {
@@ -423,7 +370,7 @@ function packsToOptions(packs, pack_list, korm) {
         iohook.start();
       }
     });
-    
+
     var playKeyupSound
 
     if(is_keyup){
@@ -469,9 +416,8 @@ function packsToOptions(packs, pack_list, korm) {
       }
     });
 
-    //Random Sounds
     var randomSounds
-    
+
     if(is_random){
       randomSounds = true
     }
@@ -513,7 +459,6 @@ function packsToOptions(packs, pack_list, korm) {
     var keyPressedList = []
 
 
-    // if key released, clear current key
     iohook.on('keyup', ({ keycode }) => {
       if(playKeyupSound){
         playSound(`${keycode}`, store.get(MV_KEY_VOL_LSID), playKeyupSound, 'up');
@@ -524,20 +469,16 @@ function packsToOptions(packs, pack_list, korm) {
       catch{
         console.log("Caught bad keypress")
       }
-      if(keyPressedList.length < 1){        
+      if(keyPressedList.length < 1){
         app_logo.classList.remove('pressed');
       }
     });
 
-    // key pressed, pack current key and play sound
     iohook.on('keydown', ({ keycode }) => {
-      // if hold down a key, not repeat the sound
       if (keyPressedList.includes(keycode)) {
         return;
       }
 
-      // display current pressed key
-      // app_logo.innerHTML = keycode;
       app_logo.classList.add('pressed');
 
       const applicablekeys = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83]
@@ -545,7 +486,6 @@ function packsToOptions(packs, pack_list, korm) {
 
       keyPressedList.push(keycode);
 
-      // pack current pressed key
       if(randomSounds && !nonapplicablekeys.includes(keycode)){
         current_sound_key = applicablekeys[Math.floor(Math.random() * applicablekeys.length)];
       }
@@ -556,8 +496,6 @@ function packsToOptions(packs, pack_list, korm) {
 
       var sound_id = `${current_sound_key}`;
 
-      // get loaded audio object
-      // if object valid, pack volume and play sound
       if (current_keyboard_pack) {
         if(playKeyupSound){
           playSound(`${current_sound_key}`, store.get(MV_KEY_VOL_LSID), playKeyupSound, 'down');
@@ -570,8 +508,6 @@ function packsToOptions(packs, pack_list, korm) {
   });
 })(window, document);
 
-// ==================================================
-// universal play function
 function playSound(sound_id, volume, playKeyupSound, downOrUp) {
 
   var initOne
@@ -580,7 +516,6 @@ function playSound(sound_id, volume, playKeyupSound, downOrUp) {
   var keycode = `keycode-${sound_id}`;
 
 
-      //!Setting keycode correct for compat packs!
       if(playKeyupSound && downOrUp == 'down' && pack_compatibility){
         keycode = `keycode-0${sound_id}`
       }
@@ -594,37 +529,36 @@ function playSound(sound_id, volume, playKeyupSound, downOrUp) {
     return;
   }
 
-      //!!Splitting sound up for non compat packs!! -- DOWN SOUND ONLY
       var tempHoldings
       if(playKeyupSound && !pack_compatibility && downOrUp == 'down'){
         if(play_type == 'single'){
           tempHoldings = sound['_sprite'][keycode]
-          initOne = sound['_sprite'][keycode][0] //Start Time
-          initTwo = sound['_sprite'][keycode][1] //Length
-            sound['_sprite'][keycode][1] = Math.floor(initTwo/2) //Length
+          initOne = sound['_sprite'][keycode][0]
+          initTwo = sound['_sprite'][keycode][1]
+            sound['_sprite'][keycode][1] = Math.floor(initTwo/2)
         }
         else{
           tempHoldings = sound['_sprite']['__default']
-          initOne = sound['_sprite']['__default'][0] //Start Time
-          initTwo = sound['_sprite']['__default'][1] //Length
-          sound['_sprite']['__default'][1] = Math.floor(initTwo/2) //Length
+          initOne = sound['_sprite']['__default'][0]
+          initTwo = sound['_sprite']['__default'][1]
+          sound['_sprite']['__default'][1] = Math.floor(initTwo/2)
         }
       }
 
       else if(playKeyupSound && !pack_compatibility && downOrUp == 'up'){
         if(play_type == 'single'){
           tempHoldings = sound['_sprite'][keycode]
-          initOne = sound['_sprite'][keycode][0] //Start Time
-          initTwo = sound['_sprite'][keycode][1] //Length
-            sound['_sprite'][keycode][0] = initOne+Math.floor((initTwo/2)) //Start Time
-            sound['_sprite'][keycode][1] = Math.floor(initTwo/2) //Length
+          initOne = sound['_sprite'][keycode][0]
+          initTwo = sound['_sprite'][keycode][1]
+            sound['_sprite'][keycode][0] = initOne+Math.floor((initTwo/2))
+            sound['_sprite'][keycode][1] = Math.floor(initTwo/2)
         }
         else{
           tempHoldings = sound['_sprite']['__default']
-          initOne = sound['_sprite']['__default'][0] //Start Time
-          initTwo = sound['_sprite']['__default'][1] //Length
-            sound['_sprite']['__default'][0] = initOne+Math.floor((initTwo/2)) //Start Time
-            sound['_sprite']['__default'][1] = Math.floor(initTwo/2) //Length
+          initOne = sound['_sprite']['__default'][0]
+          initTwo = sound['_sprite']['__default'][1]
+          sound['_sprite']['__default'][0] = initOne+Math.floor((initTwo/2))
+          sound['_sprite']['__default'][1] = Math.floor(initTwo/2)
         }
       }
 
@@ -636,7 +570,6 @@ function playSound(sound_id, volume, playKeyupSound, downOrUp) {
     sound.play();
   }
 
-      //Resetting values for non compat packs
       if(playKeyupSound && !pack_compatibility){
         if(play_type=='single'){
           sound['_sprite'][keycode][0] = initOne
