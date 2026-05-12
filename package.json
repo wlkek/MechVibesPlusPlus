@@ -1,13 +1,13 @@
 {
   "name": "mechvibesplusplus",
   "productName": "MechvibesPlusPlus",
-  "version": "v2.4.0",
+  "version": "v2.5.0",
   "description": "Play mechanical keyboard sounds as you type.",
   "repository": "https://github.com/PyroCalzone/MechVibesPlusPlus",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "build:quick": "electron-builder -- --dir",
+    "build:quick": "electron-builder --dir",
     "build:win": "electron-builder -w",
     "build:mac": "electron-builder -m",
     "build:linux": "electron-builder -l"

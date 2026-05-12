@@ -3,15 +3,16 @@
 const fs = require('fs');
 const path = require('path');
 const { shell, ipcRenderer } = require('electron');
+const Store = require('electron-store');
+const store = new Store();
 
 const remapper = require('./utils/remapper');
 const layouts = require('./libs/layouts');
 const keycodes = require('./libs/keycodes');
 const $ = require('./assets/jquery');
 const i18n = require('./i18n');
-const Store = require('electron-store');
-const store = new Store();
 
+// Load saved locale or default to English
 const savedLocale = store.get('mechvibes-locale') || 'en';
 i18n.setLocale(savedLocale);
 
@@ -19,6 +20,24 @@ const layout = layouts[process.platform];
 const { sizes } = layouts;
 const os_keycode = keycodes[process.platform];
 const CUSTOM_PACKS_DIR = path.join(__dirname, '../../../custom');
+
+function applyTranslations() {
+  // Apply text translations
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = i18n.t(key);
+  });
+  // Apply placeholder translations
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    el.placeholder = i18n.t(key);
+  });
+  // Apply option translations
+  document.querySelectorAll('option[data-i18n]').forEach((el) => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = i18n.t(key);
+  });
+}
 
 let selected_keycode = null;
 let current_edit_mode = 'visual';
@@ -36,25 +55,21 @@ Object.keys(pack_data.defines).map(kc => {
   pack_data.defines[kc] = null;
 });
 
-function applyTranslations() {
-  document.querySelectorAll('[data-i18n]').forEach((el) => {
-    const key = el.getAttribute('data-i18n');
-    if (el.tagName === 'OPTION') {
-      el.textContent = i18n.t(key);
-    } else {
-      el.textContent = i18n.t(key);
-    }
-  });
-  document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
-    const key = el.getAttribute('data-i18n-placeholder');
-    el.placeholder = i18n.t(key);
-  });
-}
-
 (function(document) {
   $(document).ready(() => {
+    // Apply translations
     applyTranslations();
 
+    // Language change event listener
+    ipcRenderer.on('locale-changed', async () => {
+      // Load the new locale
+      const newLocale = store.get('mechvibes-locale') || 'en';
+      i18n.setLocale(newLocale);
+      // Apply translations
+      applyTranslations();
+    });
+
+    // a little hack for open link in browser
     Array.from(document.getElementsByClassName('open-in-browser')).forEach(elem => {
       elem.addEventListener('click', e => {
         e.preventDefault();
@@ -62,6 +77,7 @@ function applyTranslations() {
       });
     });
 
+    // open custom sound pack folder
     $('#open-custom-pack-folder').on('click', () => {
       shell.showItemInFolder(CUSTOM_PACKS_DIR);
     });
@@ -81,25 +97,28 @@ function applyTranslations() {
         let k = 0;
         if (row.length) {
           for (let key of row) {
+            // visual edit
+            // <div class="key-rk">${r}-${k++}</div>
             const _key = $(`
               <div id="key-${key}" class="key ${sizes[key] ? sizes[key] : ''} ${key ? '' : 'key-blank'}" data-keycode="${key}">
-                <div class="letter">${os_keycode[key] || ''}</div>
+                <div class="letter">${os_keycode[key] || ''}</div> 
               </div>
            `);
             _key.appendTo(_row);
             _genPopover(_key, key, r > 3, zone == 'numpad');
+            // manual edit
             if (key) {
               const manual_key = $(`
                 <div id="manual-key-${key}" style="border-bottom: 1px solid #eee; padding: 10px; display: flex; justify-content: space-between; align-items: center" class="manual-key">
                   <div style="font-weight: bold; margin-right: 10px">${os_keycode[key]}</div>
                   <div class="define-mode define-mode-single">
                     <div style="display: flex;">
-                      <input type="number" placeholder="${i18n.t('editor.startPlaceholder')}" style="margin-right: 5px; width: 60px;" class="key-define custom-input sound-start" data-keycode="${key}"/>
-                      <input type="number" placeholder="${i18n.t('editor.lengthPlaceholder')}" style=" width: 60px;" class="key-define custom-input sound-length" data-keycode="${key}"/>
+                      <input type="number" data-i18n-placeholder="editor.placeholderStart" placeholder="Start..." style="margin-right: 5px; width: 60px;" class="key-define custom-input sound-start" data-keycode="${key}"/>
+                      <input type="number" data-i18n-placeholder="editor.placeholderLength" placeholder="Length..." style=" width: 60px;" class="key-define custom-input sound-length" data-keycode="${key}"/>
                     </div>
                   </div>
                   <div class="define-mode define-mode-multi">
-                    <input type="text" placeholder="${i18n.t('editor.fileNamePlaceholder')}" style="margin-right: 5px; width: 100%;" class="key-define custom-input sound-file" data-keycode="${key}"/>
+                    <input type="text" data-i18n-placeholder="editor.placeholderFileName" placeholder="File name..." style="margin-right: 5px; width: 100%;" class="key-define custom-input sound-file" data-keycode="${key}"/>
                   </div>
                 </div>
               `);
@@ -229,11 +248,6 @@ function applyTranslations() {
       });
       _checkIfHasSound();
     });
-
-    ipcRenderer.on('locale-changed', function (_event, locale) {
-      i18n.setLocale(locale);
-      applyTranslations();
-    });
   });
 
   function _checkIfHasSound() {
@@ -253,21 +267,21 @@ function applyTranslations() {
     const popover = $(`
       <div class="popover ${up ? 'up' : ''} ${left ? 'left' : ''}" style="min-width: 250px; position: absolute">
         <div class="define-mode define-mode-single" style="margin-bottom: 10px">
-          <div style="margin-bottom: 5px">${i18n.t('editor.setStartAndLength')}</div>
+          <div style="margin-bottom: 5px" data-i18n="editor.setStartLength">Set start and length (ms)</div>
           <div style="display: flex;">
-            <input type="number" placeholder="${i18n.t('editor.startPlaceholder')}" style="margin-right: 10px; width: 50%;" class="key-define custom-input sound-start"/>
-            <input type="number" placeholder="${i18n.t('editor.lengthPlaceholder')}" style="width: 50%" class="key-define custom-input sound-length"/>
+            <input type="number" data-i18n-placeholder="editor.placeholderStart" placeholder="Start..." style="margin-right: 10px; width: 50%;" class="key-define custom-input sound-start"/>
+            <input type="number" data-i18n-placeholder="editor.placeholderLength" placeholder="Length..." style="width: 50%" class="key-define custom-input sound-length"/>
           </div>
         </div>
 
         <div class="define-mode define-mode-multi" style="margin-bottom: 10px">
-          <div style="margin-bottom: 5px">${i18n.t('editor.enterAudioFileName')}</div>
-          <input type="text" placeholder="${i18n.t('editor.soundFileNamePlaceholder')}"  class="key-define custom-input sound-name" style="width: 95%; margin-right: 10px;"/>
+          <div style="margin-bottom: 5px" data-i18n="editor.enterFileName">Enter audio file name:</div>
+          <input type="text" data-i18n-placeholder="editor.soundFilePlaceholder" placeholder="Sound file name..."  class="key-define custom-input sound-name" style="width: 95%; margin-right: 10px;"/>
         </div>
 
         <div style="display: flex; justify-content: space-between">
-          <button class="save">${i18n.t('editor.save')}</button>
-          <button class="close">${i18n.t('editor.close')}</button>
+          <button class="save" data-i18n="editor.save">Save</button>
+          <button class="close" data-i18n="editor.close">Close</button>
         </div>
       </div>
     `);
