@@ -10,14 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      matrix:
-        os: [windows-latest]
-        include:
-          - os: windows-latest
-            artifact_path: dist/win-unpacked
+    runs-on: windows-2019
 
     steps:
       - name: Checkout
@@ -26,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '12'
+          node-version: '14'
 
       - name: Install dependencies
         run: npm install
