@@ -41,7 +41,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: MechvibesPlusPlus-Windows
-          path: dist/
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/*.yml
           retention-days: 5
 
   release:
@@ -60,13 +63,13 @@ jobs:
           path: dist/
 
       - name: List files in dist
-        run: ls -laR dist/
+        run: ls -la dist/
         if: always()
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/**/*.exe dist/**/*.yml dist/**/*blockmap*
+          files: dist/*.exe dist/*.yml dist/*.blockmap
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
