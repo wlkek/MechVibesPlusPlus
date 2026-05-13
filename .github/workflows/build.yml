@@ -33,7 +33,7 @@ jobs:
           ELECTRON_MIRROR: https://cdn.npmmirror.com/binaries/electron/
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: List dist contents
+      - name: List dist
         run: Get-ChildItem -Path dist -Recurse
         if: always()
 
@@ -41,10 +41,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: MechvibesPlusPlus-Windows
-          path: |
-            dist/*.exe
-            dist/*.blockmap
-            dist/*.yml
+          path: dist/
           retention-days: 5
 
   release:
@@ -62,14 +59,14 @@ jobs:
           name: MechvibesPlusPlus-Windows
           path: dist/
 
-      - name: List files in dist
-        run: ls -la dist/
+      - name: List dist
+        run: ls -la dist/ && find dist/ -name "*.exe" -o -name "*.yml" -o -name "*blockmap*"
         if: always()
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.exe dist/*.yml dist/*.blockmap
+          files: dist/**/*.exe dist/**/*.yml dist/**/*blockmap*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
